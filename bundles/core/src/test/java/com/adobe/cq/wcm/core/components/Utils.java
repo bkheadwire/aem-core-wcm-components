@@ -29,6 +29,9 @@ import org.apache.commons.io.IOUtils;
 import com.adobe.cq.wcm.core.components.internal.jackson.DefaultMethodSkippingModuleProvider;
 import com.adobe.cq.wcm.core.components.internal.jackson.PageModuleProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sling.testing.mock.sling.servlet.MockSlingHttpServletRequest;
+import org.apache.sling.testing.mock.sling.servlet.MockSlingHttpServletResponse;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -93,4 +96,30 @@ public class Utils {
         return testBase + "/exporter-" + FilenameUtils.getName(testResourcePath) + ".json";
     }
 
+    public static class RequestResponsePair extends Pair<MockSlingHttpServletRequest, MockSlingHttpServletResponse> {
+
+        private MockSlingHttpServletRequest request;
+        private MockSlingHttpServletResponse response;
+
+        public RequestResponsePair(MockSlingHttpServletRequest request,
+                                    MockSlingHttpServletResponse response) {
+            this.request = request;
+            this.response = response;
+        }
+
+        @Override
+        public MockSlingHttpServletRequest getLeft() {
+            return request;
+        }
+
+        @Override
+        public MockSlingHttpServletResponse getRight() {
+            return response;
+        }
+
+        @Override
+        public MockSlingHttpServletResponse setValue(MockSlingHttpServletResponse value) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

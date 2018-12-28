@@ -52,6 +52,7 @@ public class DownloadImplTest {
     private static final String CONTEXT_PATH = "/core";
     private static final String TEST_ROOT_PAGE = "/content/downloads";
     private static final String TEST_ROOT_PAGE_GRID = "/jcr:content/root/responsivegrid";
+    private static final String DOWNLOAD_URL = "/bin/download.file/8d7e96d4-501a-4ade-93d5-a5956b13a5df/" + PDF_BINARY_NAME;
     private static final String TITLE = "Download";
     private static final String DESCRIPTION = "Description";
     private static final String DAM_TITLE = "This is the title from the PDF.";
@@ -93,7 +94,7 @@ public class DownloadImplTest {
         Download download = getDownloadUnderTest(DOWNLOAD_1);
         assertEquals(TITLE, download.getTitle());
         assertEquals(DESCRIPTION, download.getDescription());
-        assertEquals(PDF_ASSET_PATH, download.getDownloadUrl());
+        assertEquals(DOWNLOAD_URL, download.getDownloadUrl());
         assertEquals(PDF_FILENAME, download.getFilename());
         assertEquals(PDF_FILESIZE_STRING, download.getSize());
         assertEquals(PDF_FORMAT_STRING, download.getFormat());
@@ -105,7 +106,7 @@ public class DownloadImplTest {
         Download download = getDownloadUnderTest(DOWNLOAD_2);
         assertEquals(DAM_TITLE, download.getTitle());
         assertEquals(DAM_DESCRIPTION, download.getDescription());
-        assertEquals(PDF_ASSET_PATH, download.getDownloadUrl());
+        assertEquals(DOWNLOAD_URL, download.getDownloadUrl());
         assertEquals(PDF_FILENAME, download.getFilename());
         assertEquals(PDF_FILESIZE_STRING, download.getSize());
         assertEquals(PDF_FORMAT_STRING, download.getFormat());

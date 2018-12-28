@@ -17,6 +17,7 @@ package com.adobe.cq.wcm.core.components.internal.models.v1;
 
 import com.adobe.cq.export.json.ComponentExporter;
 import com.adobe.cq.export.json.ExporterConstants;
+import com.adobe.cq.wcm.core.components.internal.servlets.CoreFileDownloadServlet;
 import com.adobe.cq.wcm.core.components.models.Download;
 import com.day.cq.commons.DownloadResource;
 import com.day.cq.commons.jcr.JcrConstants;
@@ -52,6 +53,8 @@ public class DownloadImpl implements Download {
 
     protected static final String JPEG_EXTENSION = ".jpeg";
     protected static final String IMAGE_SERVLET_EXTENSION = ".coreimg" + JPEG_EXTENSION;
+    protected static final String DOT = ".";
+    protected static final String SLASH = "/";
 
     @Self
     private SlingHttpServletRequest request;
@@ -130,7 +133,21 @@ public class DownloadImpl implements Download {
                         lastModified = assetLastModified;
                     }
 
-                    downloadUrl = downloadAsset.getPath();
+                    ValueMap downloadResourceProperties = downloadResource.getValueMap();
+                    if(downloadResourceProperties != null){
+                        String uuid = downloadAsset.getID();
+                        if(StringUtils.isNotBlank(uuid)) {
+                            StringBuffer downloadUrlBuilder = new StringBuffer();
+                            downloadUrlBuilder.append(CoreFileDownloadServlet.PATH)
+                                .append(DOT)
+                                .append(CoreFileDownloadServlet.EXTENSION)
+                                .append(SLASH)
+                                .append(uuid)
+                                .append(SLASH)
+                                .append(downloadAsset.getName());
+                            downloadUrl = downloadUrlBuilder.toString();
+                        }
+                    }
 
                     StringBuilder imagePathBuilder = new StringBuilder();
 
