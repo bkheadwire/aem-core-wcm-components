@@ -29,8 +29,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceMetadata;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ValueMap;
+import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.apache.sling.models.annotations.Exporter;
 import org.apache.sling.models.annotations.Model;
 import org.apache.sling.models.annotations.injectorspecific.*;
@@ -123,70 +125,113 @@ public class DownloadImpl implements Download {
             displayFilename = currentStyle.get(PN_DISPLAY_FILENAME, false);
         }
         if (StringUtils.isNotBlank(fileReference)) {
+            //Component is configured to download a DAM asset
             Resource downloadResource = resourceResolver.getResource(fileReference);
             if (downloadResource != null) {
                 Asset downloadAsset = downloadResource.adaptTo(Asset.class);
                 if (downloadAsset != null) {
-                    Calendar resourceLastModified = properties.get(JcrConstants.JCR_LASTMODIFIED, Calendar.class);
-                    if (resourceLastModified != null) {
-                        lastModified = resourceLastModified.getTimeInMillis();
-                    }
-                    long assetLastModified = downloadAsset.getLastModified();
-                    if (assetLastModified > lastModified) {
-                        lastModified = assetLastModified;
-                    }
-
-                    ValueMap downloadResourceProperties = downloadResource.getValueMap();
-                    if(downloadResourceProperties != null){
-                        String uuid = downloadAsset.getID();
-                        if(StringUtils.isNotBlank(uuid)) {
-                            StringBuffer downloadUrlBuilder = new StringBuffer();
-                            downloadUrlBuilder.append(CoreFileDownloadServlet.PATH)
-                                .append(DOT)
-                                .append(CoreFileDownloadServlet.EXTENSION)
-                                .append(SLASH)
-                                .append(uuid)
-                                .append(SLASH)
-                                .append(downloadAsset.getName());
-                            downloadUrl = downloadUrlBuilder.toString();
-                        }
-                    }
-
-                    StringBuilder imagePathBuilder = new StringBuilder();
-
-                    String resourcePath = resourceResolver.map(request, resource.getPath());
-
-                    imagePathBuilder.append(resourcePath).append(IMAGE_SERVLET_EXTENSION);
-                    if (lastModified > 0) {
-                        imagePathBuilder.append("/").append(lastModified).append(JPEG_EXTENSION);
-                    }
-
-                    imagePath = imagePathBuilder.toString();
-
-                    if (titleFromAsset) {
-                        String assetTitle = downloadAsset.getMetadataValue(DamConstants.DC_TITLE);
-                        if (StringUtils.isNotBlank(assetTitle)) {
-                            title = assetTitle;
-                        }
-                    }
-                    if (descriptionFromAsset) {
-                        String assetDescription = downloadAsset.getMetadataValue(DamConstants.DC_DESCRIPTION);
-                        if (StringUtils.isNotBlank(assetDescription)) {
-                            description = assetDescription;
-                        }
-                    }
-
-                    size = null;
-                    Object rawFileSizeObject = downloadAsset.getMetadata(DamConstants.DAM_SIZE);
-                    if(rawFileSizeObject != null){
-                        long rawFileSize = (Long)rawFileSizeObject;
-                        size = FileUtils.byteCountToDisplaySize(rawFileSize);
-                    }
-
-                    filename = downloadAsset.getName();
-
-                    format = downloadAsset.getMetadataValue(DamConstants.DC_FORMAT);
+                    setFieldsForDamAsset(downloadAsset);
                 }
+                else {
+                    LOG.error("Unable to adapt resource '{}' used by download '{}' to an asset.", fileReference, resource.getPath());
+                }
+            }
+            else {
+                LOG.error("Unable to find resource '{}' used by download '{}'.", fileReference, resource.getPath());
+            }
+        }
+        else {
+            Resource fileResource = resource.getChild(DownloadResource.NN_FILE);
+            if(fileResource != null) {
+                setFieldsForUploadedFile(fileResource);
+            }
+        }
+    }
+
+    protected void createDownloadUrl(String uuid, String filename) {
+        if(StringUtils.isBlank(uuid) || StringUtils.isBlank(filename)) {
+            LOG.error("Missing required information for download servlet path. UUID: '{}', Filename: '{}'", uuid, filename);
+            return;
+        }
+
+        StringBuffer downloadUrlBuilder = new StringBuffer();
+        downloadUrlBuilder.append(CoreFileDownloadServlet.PATH)
+            .append(DOT)
+            .append(CoreFileDownloadServlet.EXTENSION)
+            .append(SLASH)
+            .append(uuid)
+            .append(SLASH)
+            .append(filename);
+        downloadUrl = downloadUrlBuilder.toString();
+    }
+
+    protected void setFieldsForUploadedFile(Resource fileResource) {
+        Resource contentResource = fileResource.getChild(JcrConstants.JCR_CONTENT);
+        if(contentResource == null) {
+            LOG.error("File node of download '{}' missing jcr:content resource.", resource.getPath());
+            return;
+        }
+
+        ValueMap fileContentProperties = contentResource.getValueMap();
+
+        //For uploaded files, the UUID only exists on the jcr:content resource below the file node
+        String uuid = fileContentProperties.get(JcrConstants.JCR_UUID, String.class);
+        filename = properties.get(DownloadResource.PN_FILE_NAME, String.class);
+
+        createDownloadUrl(uuid, filename);
+
+        format = PropertiesUtil.toString(fileResource.getResourceMetadata().get(ResourceMetadata.CONTENT_TYPE), "");
+        long rawFileSize = PropertiesUtil.toLong(fileResource.getResourceMetadata().get(ResourceMetadata.CONTENT_LENGTH), 0);
+        if(rawFileSize > 0) {
+            size = FileUtils.byteCountToDisplaySize(rawFileSize);
+        }
+    }
+
+    protected void setFieldsForDamAsset(Asset downloadAsset) {
+        Calendar resourceLastModified = properties.get(JcrConstants.JCR_LASTMODIFIED, Calendar.class);
+        if (resourceLastModified != null) {
+            lastModified = resourceLastModified.getTimeInMillis();
+        }
+        long assetLastModified = downloadAsset.getLastModified();
+        if (assetLastModified > lastModified) {
+            lastModified = assetLastModified;
+        }
+
+        String uuid = downloadAsset.getID();
+        filename = downloadAsset.getName();
+
+        createDownloadUrl(uuid, filename);
+
+        format = downloadAsset.getMetadataValue(DamConstants.DC_FORMAT);
+        size = null;
+        Object rawFileSizeObject = downloadAsset.getMetadata(DamConstants.DAM_SIZE);
+        if(rawFileSizeObject != null){
+            long rawFileSize = (Long)rawFileSizeObject;
+            size = FileUtils.byteCountToDisplaySize(rawFileSize);
+        }
+
+
+        StringBuilder imagePathBuilder = new StringBuilder();
+
+        String resourcePath = resourceResolver.map(request, resource.getPath());
+
+        imagePathBuilder.append(resourcePath).append(IMAGE_SERVLET_EXTENSION);
+        if (lastModified > 0) {
+            imagePathBuilder.append("/").append(lastModified).append(JPEG_EXTENSION);
+        }
+
+        imagePath = imagePathBuilder.toString();
+
+        if (titleFromAsset) {
+            String assetTitle = downloadAsset.getMetadataValue(DamConstants.DC_TITLE);
+            if (StringUtils.isNotBlank(assetTitle)) {
+                title = assetTitle;
+            }
+        }
+        if (descriptionFromAsset) {
+            String assetDescription = downloadAsset.getMetadataValue(DamConstants.DC_DESCRIPTION);
+            if (StringUtils.isNotBlank(assetDescription)) {
+                description = assetDescription;
             }
         }
     }

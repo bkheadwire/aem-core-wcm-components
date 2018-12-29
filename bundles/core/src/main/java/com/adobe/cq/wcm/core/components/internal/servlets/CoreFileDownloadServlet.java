@@ -16,7 +16,9 @@
 
 package com.adobe.cq.wcm.core.components.internal.servlets;
 
+import com.day.cq.commons.jcr.JcrConstants;
 import com.day.cq.dam.api.Asset;
+import com.day.cq.dam.api.DamConstants;
 import com.day.cq.dam.api.Rendition;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -24,9 +26,11 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestPathInfo;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceMetadata;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.servlets.HttpConstants;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
+import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Modified;
@@ -84,8 +88,6 @@ public class CoreFileDownloadServlet extends SlingSafeMethodsServlet {
 
     private static final String CONTENT_DISPOSITION_HEADER = "Content-Disposition";
 
-    private static final String ASSET_RESOURCE_TYPE = "dam:Asset";
-
     private static final String SUFFIX_SEPARATOR = "/";
     private static final String ATTACHMENT_DISPOSITION = "attachment";
     private static final String INLINE_DISPOSITION = "inline";
@@ -130,7 +132,7 @@ public class CoreFileDownloadServlet extends SlingSafeMethodsServlet {
             return;
         }
 
-        if(downloadResource.isResourceType(ASSET_RESOURCE_TYPE)) {
+        if(downloadResource.isResourceType(DamConstants.NT_DAM_ASSET)) {
             if(!filename.equalsIgnoreCase(downloadResource.getName()))
             {
                 LOGGER.error("Filename from suffix '{}' does not match filename from resource '{}'",
@@ -140,12 +142,41 @@ public class CoreFileDownloadServlet extends SlingSafeMethodsServlet {
             }
             streamAsset(downloadResource, filename, response);
         }
+        else if(downloadResource.isResourceType(JcrConstants.NT_RESOURCE)) {
+            Resource fileResource = downloadResource.getParent();
+            if(fileResource == null || !fileResource.isResourceType(JcrConstants.NT_FILE)) {
+                LOGGER.error("Did not find a file node as the parent of resource '{}'.", downloadResource.getPath());
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            streamFile(fileResource, filename, response);
+        }
+        else {
+            LOGGER.error("Resource at path '{}' has type '{}'. This servlet expects either an asset or the content resource of an uploaded file.",
+                downloadResource.getPath(), downloadResource.getResourceType());
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
 
         LOGGER.debug("Download Resource: {}", downloadResource.getPath());
     }
 
-    private void streamAsset(@Nonnull Resource downloadResource, @Nonnull String filename, @Nonnull SlingHttpServletResponse response) throws IOException
-    {
+    private void streamFile(@Nonnull Resource fileResource, @Nonnull String filename, @Nonnull SlingHttpServletResponse response) throws IOException {
+        InputStream inputStream = fileResource.adaptTo(InputStream.class);
+        if(inputStream == null) {
+            LOGGER.error("Could not adapt file resource to input stream: {}", fileResource.getPath());
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String contentType = PropertiesUtil.toString(fileResource.getResourceMetadata().get(ResourceMetadata.CONTENT_TYPE), "");
+        int size = PropertiesUtil.toInteger(fileResource.getResourceMetadata().get(ResourceMetadata.CONTENT_LENGTH), 0);
+
+        //TODO: What's the appropriate way to handle missing content type/size data?
+
+        stream(response, inputStream, contentType, filename, size);
+    }
+
+    private void streamAsset(@Nonnull Resource downloadResource, @Nonnull String filename, @Nonnull SlingHttpServletResponse response) throws IOException {
         Asset downloadAsset = downloadResource.adaptTo(Asset.class);
         if(downloadAsset == null) {
             LOGGER.error("Could not adapt Resource to Asset: {}", downloadResource.getPath());
