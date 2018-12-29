@@ -17,9 +17,7 @@
      data-sly-use.templates="core/wcm/components/commons/v1/templates.html"
      data-sly-test.hasContent="${download.imagePath || download.title || download.description}"
      class="cmp-download${!wcmmode.disabled ? ' cq-dd-file' : ''}">
-    <div class="cmp-download__image" data-sly-test.imagePath="${download.imagePath}">
-        <img src="${imagePath}"/>
-    </div>
+    <div class="cmp-download__image" data-sly-test="${download.displayImage && download.imageResource}" data-sly-resource="${download.imageResource}"></div>
     <h2 class="cmp-download__title" data-sly-test.title="${download.title}" data-sly-element="${download.titleType}">
         ${title}
     </h2>

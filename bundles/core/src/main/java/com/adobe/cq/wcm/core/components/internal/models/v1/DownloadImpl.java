@@ -22,6 +22,8 @@ import com.day.cq.commons.DownloadResource;
 import com.day.cq.commons.jcr.JcrConstants;
 import com.day.cq.dam.api.Asset;
 import com.day.cq.dam.api.DamConstants;
+import com.day.cq.dam.api.Rendition;
+import com.day.cq.wcm.api.components.Component;
 import com.day.cq.wcm.api.designer.Style;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.io.FileUtils;
@@ -38,13 +40,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 @Model(adaptables = SlingHttpServletRequest.class,
        adapters = {Download.class, ComponentExporter.class},
        resourceType = DownloadImpl.RESOURCE_TYPE)
 @Exporter(name = ExporterConstants.SLING_MODEL_EXPORTER_NAME, extensions = ExporterConstants.SLING_MODEL_EXTENSION)
-public class DownloadImpl implements Download {
+public class DownloadImpl extends AbstractImageDelegatingModel implements Download {
 
     private static final Logger LOG = LoggerFactory.getLogger(DownloadImpl.class);
 
@@ -52,6 +56,7 @@ public class DownloadImpl implements Download {
 
     protected static final String JPEG_EXTENSION = ".jpeg";
     protected static final String IMAGE_SERVLET_EXTENSION = ".coreimg" + JPEG_EXTENSION;
+    protected static final String IMAGE_TYPE_PREFIX = "image";
 
     @Self
     private SlingHttpServletRequest request;
@@ -61,6 +66,9 @@ public class DownloadImpl implements Download {
 
     @ScriptVariable
     private ValueMap properties;
+
+    @ScriptVariable
+    private Component component;
 
     @ScriptVariable(injectionStrategy = InjectionStrategy.OPTIONAL)
     @JsonIgnore
@@ -104,8 +112,14 @@ public class DownloadImpl implements Download {
 
     private long lastModified = 0;
 
+    private final List<String> hiddenImageResourceProperties = new ArrayList<String>() {{
+        add(JcrConstants.JCR_TITLE);
+        add(JcrConstants.JCR_DESCRIPTION);
+    }};
+
     @PostConstruct
     protected void initModel() {
+        boolean hasImage = false;
         String fileReference = properties.get(DownloadResource.PN_REFERENCE, String.class);
         titleFromAsset = properties.get(PN_TITLE_FROM_ASSET, titleFromAsset);
         descriptionFromAsset = properties.get(PN_DESCRIPTION_FROM_ASSET, descriptionFromAsset);
@@ -134,6 +148,10 @@ public class DownloadImpl implements Download {
                     }
 
                     downloadUrl = downloadAsset.getPath();
+
+                    if(hasImageRendition(downloadAsset)) {
+                        hasImage = true;
+                    }
 
                     StringBuilder imagePathBuilder = new StringBuilder();
 
@@ -172,6 +190,21 @@ public class DownloadImpl implements Download {
                 }
             }
         }
+        if(hasImage) {
+            setImageResource(component, resource, hiddenImageResourceProperties);
+        }
+    }
+
+    private boolean hasImageRendition(Asset downloadAsset) {
+        List<Rendition> renditions = downloadAsset.getRenditions();
+        for(Rendition rendition : renditions) {
+            String renditionType = rendition.getMimeType();
+            if(renditionType != null && renditionType.startsWith(IMAGE_TYPE_PREFIX))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nonnull

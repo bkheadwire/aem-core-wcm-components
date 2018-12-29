@@ -17,6 +17,7 @@
 package com.adobe.cq.wcm.core.components.models;
 
 import com.adobe.cq.export.json.ComponentExporter;
+import org.apache.sling.api.resource.Resource;
 
 import javax.annotation.Nonnull;
 
@@ -117,6 +118,15 @@ public interface Download extends ComponentExporter {
      */
     default String getImagePath()
     {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Returns the image resource for this download.
+     *
+     * @return the image resource for this download or {@code null}
+     */
+    default Resource getImageResource() {
         throw new UnsupportedOperationException();
     }
 
