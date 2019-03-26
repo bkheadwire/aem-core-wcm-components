@@ -1,0 +1,27 @@
+<!--/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ~ Copyright 2018 Adobe Systems Incorporated
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/-->
+<video data-sly-use.video="com.adobe.cq.wcm.core.components.models.Video"
+       data-sly-use.templates="core/wcm/components/commons/v1/templates.html"
+       data-sly-test.hasContent="${video.sources}"
+       data-sly-attribute.controls="${!video.hideControls}"
+       data-sly-attribute.autoplay="${video.autoplayEnabled}"
+       data-sly-attribute.loop="${video.loopEnabled}"
+       data-sly-attribute.preload="${video.preload}"
+       data-sly-attribute.poster="${video.posterImage}"
+       class="cmp-video${!wcmmode.disabled ? ' cq-dd-video' : ''}" data-sly-list.source="${video.sources}">
+    <source src="${source.src}" type="${source.type}"/>
+</video>
+<sly data-sly-call="${templates.placeholder @ isEmpty=!hasContent, classAppend='cmp-video cq-dd-video'}"></sly>
